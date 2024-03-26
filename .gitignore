@@ -1,0 +1,5 @@
+## cache files
+__pycache__/
+
+# mac environment files
+**.DS_Store
