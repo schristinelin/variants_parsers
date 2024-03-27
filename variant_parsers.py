@@ -3,7 +3,7 @@ import os
 import click
 import pandas as pd
 
-from util import wrangle_brca1_functional, wrangle_clinvar_txt
+from util import calc_odds_path, wrangle_brca1_functional, wrangle_clinvar_txt
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -36,8 +36,12 @@ def variant_parser(gene_name, output_file_name):
 
     clinvar_df = wrangle_clinvar_txt(clinvar_df)
 
-    classified_df = functional_df.merge(clinvar_df, on = ['transcript_variant', 'protein_variant'])
+    classified_df = functional_df.merge(clinvar_df, on = ['transcript_variant', 'protein_variant']).drop_duplicates()
     classified_df.to_csv(os.path.join(output_gene_data_dir, 'classified_df.csv'), index= False)
+
+    # calculate oddspath
+    calc_odds_path(classified_df)
+
 
 
 

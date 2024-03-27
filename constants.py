@@ -23,6 +23,5 @@ mutations_dict = {
 
 classification_map = {
     'Pathogenic': ['Pathogenic', 'Likely pathogenic', 'Pathogenic/Likely pathogenic'],
-    'Benign': ['Likely benign', 'Benign/Likely benign', 'Benign'],
-    'Unknown': ['Uncertain significance']
+    'Benign': ['Likely benign', 'Benign/Likely benign', 'Benign']
 }
