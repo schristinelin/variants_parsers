@@ -36,8 +36,11 @@ def variant_parser(gene_name, output_file_name):
 
     clinvar_df = wrangle_clinvar_txt(clinvar_df)
 
+    print(clinvar_df)
+    print(functional_df)
+
     classified_df = functional_df.merge(clinvar_df, on = ['transcript_variant', 'protein_variant']).drop_duplicates()
-    classified_df.to_csv(os.path.join(output_gene_data_dir, 'classified_df.csv'), index= False)
+    classified_df.to_csv(os.path.join(output_gene_data_dir, output_file_name), index= False)
 
     # calculate oddspath
     calc_odds_path(classified_df)

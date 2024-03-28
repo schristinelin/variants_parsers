@@ -17,6 +17,7 @@ mutations_dict = {
     'T': 'Thr',
     'V': 'Val',
     'W': 'Trp',
+    
     'Y': 'Tyr',
     '=': '='
 }
