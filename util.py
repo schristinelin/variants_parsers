@@ -1,9 +1,11 @@
+import os
+
+import pandas as pd
+
+from constants import classification_map, mutations_dict
+
 
 def wrangle_clinvar_txt(df):
-    import pandas as pd
-
-    from constants import classification_map, mutations_dict
-
     # brand new data container
     df = df[~df['Germline review status'].isin(['no assertion criteria provided', 'no classification provided'])]
     #df = df[df['Name'].str.contains('\(p.')] ## do not filter this out, put NA in occurences that are null
@@ -20,24 +22,36 @@ def wrangle_clinvar_txt(df):
     df_new[['suffix', 'mid_string', 'str1', 'str2']] = ''
     df_new.loc[(df_new['protein_variant'] != 'NA'), 'suffix'] = df_new.loc[df_new['protein_variant'] != 'NA', 'protein_variant'].str.split('.').str[0]+'.'
     df_new['mid_string'] = df_new.loc[df_new['protein_variant'] != 'NA', 'protein_variant'].str.extract('(\d+)')
-    df_new[['str1', 'str2']] = df_new.loc[df_new['protein_variant'] != 'NA', 'protein_variant'].str.split('\d+', expand = True)
+    df_new[['str1', 'str2']] = df_new.loc[df_new['protein_variant'] != 'NA', 'protein_variant'].str.split('\d+', expand = True).iloc[:, 0:2]
     df_new['str1'] = df_new['str1'].str.replace('p.', '')
+    df_new = df_new[df_new['protein_variant'] != 'p.?'] ## what's with these?
     df_new.loc[(df_new['protein_variant'] != 'NA'), 'protein_variant'] = df_new.loc[(df_new['protein_variant'] != 'NA'), 'suffix']+df_new.loc[(df_new['protein_variant'] != 'NA'), 'str1'].apply(lambda i:[k for k, v in mutations_dict.items() if i in v]).str[0]+df_new.loc[(df_new['protein_variant'] != 'NA'), 'mid_string']+df_new.loc[(df_new['protein_variant'] != 'NA'), 'str2'].apply(lambda i:[k for k, v in mutations_dict.items() if i in v]).str[0]
 
     df_new = df_new.drop(['suffix', 'mid_string', 'str1', 'str2'], axis=1)
     return(df_new)
 
-def wrangle_brca1_functional(df):
+def wrangle_brca1_functional(df_path):
+    df = pd.read_excel(df_path, sheet_name = 0, skiprows=2)
     df = df[['gene', 'chromosome',
        'transcript_ID', 'transcript_variant', 
        'protein_variant', 'consequence', 'function.score.mean', 'func.class']]
     df['protein_variant'] = df['protein_variant'].fillna('NA')
     return(df)
 
+def wrangle_msh2_functional(df_path):
+    df = pd.read_excel(df_path, sheet_name = 4)
+    df = df[['Variant', 'Position', 'LOF score']]
+    df = df.rename(columns={'Variant': 'protein_variant', 'LOF score': 'lof_score', 'Position':'chromosome'})
+    df['protein_variant'] = df['protein_variant'].fillna('NA')
+    df['lof_score'] = df['lof_score'].fillna(0)
+    df['func.class'] = ''
+    df.loc[df['lof_score'] > 0, 'func.class'] = 'LOF'
+    df.loc[df['lof_score'] < 0, 'func.class'] = 'FUNC'
+    df.loc[df['lof_score'] == 0, 'func.class'] = 'INT'
+    return(df)
+
 def map_genome_codes(str_val):
     import re
-
-    from constants import classification_map, mutations_dict
     suffix = str_val.split('.')[0]+'.'
     mid_string = re.findall('\d+', str_val)[0]
     print(str_val.split('\d+'))
@@ -79,14 +93,14 @@ def calc_odds_path(df):
     ## func oddspath 
     func_oddspath = (pathogenic_prop_func_p2*(1-pathogenic_prop_p1))/((1-pathogenic_prop_func_p2)*pathogenic_prop_p1)
     func_oddspath_evidence = oddspath_strength_evidence(func_oddspath)
-    print(func_oddspath_evidence)
-    print(func_oddspath)
+    print('oddspath evidence - func: '+ func_oddspath_evidence)
+    print('oddspath - func: '+ str(func_oddspath))
 
     ## lof oddspath
     lof_oddspath = (pathogenic_prop_lof_p2*(1-pathogenic_prop_p1))/((1-pathogenic_prop_lof_p2)*pathogenic_prop_p1)
     lof_oddspath_evidence = oddspath_strength_evidence(lof_oddspath)
-    print(lof_oddspath_evidence)
-    print(lof_oddspath)
+    print('oddspath evidence - lof: '+ lof_oddspath_evidence)
+    print('oddspath - lof: '+str(lof_oddspath))
 
 
 
