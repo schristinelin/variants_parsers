@@ -2,7 +2,9 @@
 Usage: variant_parsers.py [OPTIONS] GENE_NAME OUTPUT_FILE_NAME
 
 Options:
-  -h, --help                   Show this message and exit.
+  -am, --regen_alphamissense_data
+                                  Set to true to regenerate alphamissense data
+  -h, --help                      Show this message and exit.
 ```
 
 Example:
