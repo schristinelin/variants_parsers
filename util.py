@@ -64,8 +64,8 @@ def map_genome_codes(str_val):
 def calc_odds_path(df):
     ## p1
     sample_size = len(df)
-    num_pathogenic = len(df[df['classification'] == 'Pathogenic'])
-    num_benign = len(df[df['classification'] == 'Benign'])
+    num_pathogenic = len(df[df['classification'].str.lower() == 'pathogenic'])
+    num_benign = len(df[df['classification'].str.lower() == 'benign'])
 
     pathogenic_prop_p1 = num_pathogenic/sample_size
     benign_prop_p1 = num_benign/sample_size
@@ -74,8 +74,8 @@ def calc_odds_path(df):
     ## FUNC
     func_df = df[df['func.class'] == 'FUNC']
     sample_size_1 = len(func_df)
-    num_pathogenic_func = len(func_df[func_df['classification'] == 'Pathogenic'])
-    num_benign_func = len(func_df[func_df['classification'] == 'Benign'])
+    num_pathogenic_func = len(func_df[func_df['classification'].str.lower() == 'pathogenic'])
+    num_benign_func = len(func_df[func_df['classification'].str.lower() == 'benign'])
 
     pathogenic_prop_func_p2 = num_pathogenic_func/sample_size_1
     benign_prop_func_p2 = num_benign_func/sample_size_1
@@ -83,8 +83,8 @@ def calc_odds_path(df):
     ## LOF
     lof_df = df[df['func.class'] == 'LOF']
     sample_size_2 = len(lof_df)
-    num_pathogenic_lof = len(lof_df[lof_df['classification'] == 'Pathogenic'])
-    num_benign_lof = len(lof_df[lof_df['classification'] == 'Benign'])
+    num_pathogenic_lof = len(lof_df[lof_df['classification'].str.lower() == 'pathogenic'])
+    num_benign_lof = len(lof_df[lof_df['classification'].str.lower() == 'benign'])
 
     pathogenic_prop_lof_p2 = num_pathogenic_lof/sample_size_2
     benign_prop_lof_p2 = num_pathogenic_lof/sample_size_2
@@ -93,14 +93,14 @@ def calc_odds_path(df):
     ## func oddspath 
     func_oddspath = (pathogenic_prop_func_p2*(1-pathogenic_prop_p1))/((1-pathogenic_prop_func_p2)*pathogenic_prop_p1)
     func_oddspath_evidence = oddspath_strength_evidence(func_oddspath)
-    print('oddspath evidence - func: '+ func_oddspath_evidence)
-    print('oddspath - func: '+ str(func_oddspath))
 
     ## lof oddspath
     lof_oddspath = (pathogenic_prop_lof_p2*(1-pathogenic_prop_p1))/((1-pathogenic_prop_lof_p2)*pathogenic_prop_p1)
     lof_oddspath_evidence = oddspath_strength_evidence(lof_oddspath)
-    print('oddspath evidence - lof: '+ lof_oddspath_evidence)
-    print('oddspath - lof: '+str(lof_oddspath))
+
+    row_list = [func_oddspath, func_oddspath_evidence, lof_oddspath, lof_oddspath_evidence]
+
+    return row_list
 
 
 
@@ -123,4 +123,35 @@ def oddspath_strength_evidence(oddspath_val):
         evidence_strength = 'PS3_very_strong'
 
     return evidence_strength
+
+def alphamissense_data_pull(filepath, output_dir, genome_coord):
+    #print(filepath)
+    #df_new = pd.read_csv(filepath, sep = '\t', compression='gzip', skiprows=2)
+    #print(df_new.head())
+    import csv
+    import gzip
+    with gzip.open(filepath, 'rt') as f:
+        tsv_reader = csv.reader(f, delimiter="\t")
+
+        # total number of lines = 69716659
+        number_of_lines = 69716659
+        df_header = []
+        df_list = []
+        #print(next(tsv_reader))
+
+        for _ in range(number_of_lines):
+            row = next(tsv_reader)
+            if '#CHROM' in row[0]:
+                df_header.append(row)    
+            elif '17' in row[0]:
+                print(row)
+                df_list.append(row)
+
+        df_out = pd.DataFrame(df_list, columns=df_header[0])
+        df_out = df_out.rename(columns={'am_class':'classification'})
+        df_out.to_csv(os.path.join(output_dir, str('alphamissense_data_' + genome_coord + '.csv')), index=False)
+
+        return(df_out)
+
+
 
