@@ -1,10 +1,12 @@
 ```
-Usage: variant_parsers.py [OPTIONS] GENE_NAME OUTPUT_FILE_NAME
+Usage: variant_parsers.py [OPTIONS] GENE_NAME
 
 Options:
+  -of, --regen_output_files       Set to true to regenerate output files
   -am, --regen_alphamissense_data
                                   Set to true to regenerate alphamissense data
   -h, --help                      Show this message and exit.
+
 ```
 
 Example:
