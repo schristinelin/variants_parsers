@@ -3,7 +3,7 @@ import os
 import click
 import pandas as pd
 
-from util import (alphamissense_data_pull, calc_odds_path,
+from util import (alphamissense_data_pull, calc_odds_path, popeve_data_pull,
                   wrangle_brca1_functional, wrangle_clinvar_txt,
                   wrangle_msh2_functional)
 
@@ -13,11 +13,12 @@ from util import (alphamissense_data_pull, calc_odds_path,
 @click.argument("output_file_name", type=click.STRING) # Example: BRCA1
 @click.option("--regen_alphamissense_data", "-am", is_flag=True, default=False, help="Set to true to regenerate alphamissense data")
 def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
-    ## env
+    ## envs and paths
     wd = os.getcwd()
     clinvar_dir = os.path.join(wd, 'input_data', 'clinvar_inputs', gene_name)
     functional_data_dir = os.path.join(wd, 'input_data', 'functional_inputs', gene_name)
     am_data_dir = os.path.join(wd, 'input_data', 'alphamissence_inputs')
+    popeve_data_dir = os.path.join(wd, 'input_data', 'popeve_inputs')
 
     # output directory
     output_data_dir = os.path.join(wd, 'output_data')
@@ -54,21 +55,22 @@ def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
     #     pass
 
     # pull alphamissense data if it doesn't exist
-    if not any(fname.endswith('.csv') for fname in os.listdir(am_data_dir)) or regen_alphamissense_data:
+    if not any(fname.endswith('.csv') for fname in os.listdir(os.path.join(am_data_dir, gene_name))) or regen_alphamissense_data:
         hg19_fp = os.path.join(am_data_dir, [f for f in alphamissense_data_files if 'hg19.tsv' in f][0])
         hg38_fp = os.path.join(am_data_dir, [f for f in alphamissense_data_files if 'hg38.tsv' in f][0]) # perhaps not great to hard-code these if there are other conditions
-        am_df_19 = alphamissense_data_pull(hg19_fp, am_data_dir, 'hg19')
-        am_df_38 = alphamissense_data_pull(hg38_fp, am_data_dir, 'hg38')
+        am_df_19 = alphamissense_data_pull(hg19_fp, am_data_dir, 'hg19', gene_name)
+        am_df_38 = alphamissense_data_pull(hg38_fp, am_data_dir, 'hg38', gene_name)
         am_df = pd.concat([am_df_19, am_df_38])
     else:
-        am_df_19 = pd.read_csv(os.path.join(am_data_dir, [f for f in os.listdir(am_data_dir)if 'hg19.csv' in f][0]))
-        am_df_38 = pd.read_csv(os.path.join(am_data_dir, [f for f in os.listdir(am_data_dir)if 'hg38.csv' in f][0]))
+        am_df_19 = pd.read_csv(os.path.join(am_data_dir, gene_name, [f for f in os.listdir(am_data_dir)if 'hg19.csv' in f][0]))
+        am_df_38 = pd.read_csv(os.path.join(am_data_dir, gene_name, [f for f in os.listdir(am_data_dir)if 'hg38.csv' in f][0]))
         am_df = pd.concat([am_df_19, am_df_38])
 
     
     # do calculations for clinvar data
     if gene_name == 'BRCA1': 
         classified_df = functional_df.merge(clinvar_df, on = ['transcript_variant', 'protein_variant']).drop_duplicates()
+        print(classified_df)
     elif gene_name == 'MSH2':
         clinvar_df.loc[clinvar_df['protein_variant'] != 'NA', 'protein_variant'] = clinvar_df['protein_variant'].str.replace('p.', '')
         classified_df = functional_df.merge(clinvar_df, on = ['protein_variant']).drop_duplicates()
@@ -92,8 +94,12 @@ def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
 
     # calculate oddspath for alphamissense
     df_calc_results.loc[len(df_calc_results)] = sum([[gene_name], calc_odds_path(am_calc), ['alphamissense']], [])
-
     print(df_calc_results)
+
+    # do calculations for popeve data
+    ## merge all datasets first, if multiple
+   # popeve_data_pull(popeve_data_dir)
+
 
 
 
