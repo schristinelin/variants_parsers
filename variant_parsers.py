@@ -10,15 +10,15 @@ from util import (alphamissense_data_pull, calc_odds_path, popeve_data_pull,
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("gene_name", type=click.STRING) # Example: BRCA1
-@click.argument("output_file_name", type=click.STRING) # Example: BRCA1
+@click.option("--regen_output_files", "-of", is_flag=True, default=False, help="Set to true to regenerate output files")
 @click.option("--regen_alphamissense_data", "-am", is_flag=True, default=False, help="Set to true to regenerate alphamissense data")
-def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
+def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
     ## envs and paths
     wd = os.getcwd()
     clinvar_dir = os.path.join(wd, 'input_data', 'clinvar_inputs', gene_name)
     functional_data_dir = os.path.join(wd, 'input_data', 'functional_inputs', gene_name)
     am_data_dir = os.path.join(wd, 'input_data', 'alphamissence_inputs')
-    popeve_data_dir = os.path.join(wd, 'input_data', 'popeve_inputs')
+    popeve_data_dir = os.path.join(wd, 'input_data', 'popeve_inputs', gene_name)
 
     # output directory
     output_data_dir = os.path.join(wd, 'output_data')
@@ -75,7 +75,9 @@ def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
         clinvar_df.loc[clinvar_df['protein_variant'] != 'NA', 'protein_variant'] = clinvar_df['protein_variant'].str.replace('p.', '')
         classified_df = functional_df.merge(clinvar_df, on = ['protein_variant']).drop_duplicates()
     
-    classified_df.to_csv(os.path.join(output_gene_data_dir, output_file_name), index= False)
+    clinvar_output_dir = os.path.join(output_gene_data_dir, 'functional_clinvar_merged_data.csv')
+    if not os.path.exists(clinvar_output_dir) or regen_output_files:
+        classified_df.to_csv(clinvar_output_dir, index= False)
 
     df_calc_results = pd.DataFrame(columns=['gene_name', 'func_oddspath', 'func_evidence', 'lof_oddspath', 'lof_evidence', 'predictor']) # container to store results
 
@@ -92,9 +94,13 @@ def variant_parser(gene_name, output_file_name, regen_alphamissense_data):
         am_calc = functional_df.merge(am_df, on = ['protein_variant']).drop_duplicates()
         am_calc = am_calc.rename(columns={'am_class':'classification'})
 
+    am_output_dir = os.path.join(output_gene_data_dir, 'functional_alphamissense_merged_data.csv')
+    if not os.path.exists(am_output_dir) or regen_output_files:
+        am_calc.to_csv(am_output_dir, index= False)
+
+
     # calculate oddspath for alphamissense
     df_calc_results.loc[len(df_calc_results)] = sum([[gene_name], calc_odds_path(am_calc), ['alphamissense']], [])
-    print(df_calc_results)
 
     # do calculations for popeve data
     ## merge all datasets first, if multiple

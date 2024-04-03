@@ -154,8 +154,7 @@ def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
         return(df_out)
 
 def popeve_data_pull(filepath, gene_name):
-    df_all = list() # container to store
-    file_list = [f for f in os.listdir(filepath)if 'xlsx' in f]
+    file_list = [f for f in os.listdir(filepath)if 'csv' in f][0]
     for file in file_list:
         fp = os.path.join(filepath, file)
         df = pd.read_excel(fp, sheet_name=1)
