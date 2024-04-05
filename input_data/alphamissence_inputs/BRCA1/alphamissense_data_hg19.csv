@@ -1,4 +1,4 @@
-#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,protein_variant,am_pathogenicity,classification
+#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,protein_variant,am_pathogenicity,am_class
 chr17,41197699,T,C,hg19,P38398,ENST00000357654.3,Y1863C,0.0802,benign
 chr17,41197699,T,A,hg19,P38398,ENST00000357654.3,Y1863F,0.0785,benign
 chr17,41197699,T,G,hg19,P38398,ENST00000357654.3,Y1863S,0.0873,benign

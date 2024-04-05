@@ -1,4 +1,4 @@
-#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,protein_variant,am_pathogenicity,classification
+#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,protein_variant,am_pathogenicity,am_class
 chr2,47630334,G,C,hg19,P43246,ENST00000233146.2,A2P,0.7028,pathogenic
 chr2,47630334,G,T,hg19,P43246,ENST00000233146.2,A2S,0.3517,ambiguous
 chr2,47630334,G,A,hg19,P43246,ENST00000233146.2,A2T,0.7523,pathogenic

@@ -1,4 +1,4 @@
-gene,chromosome,transcript_ID,transcript_variant,protein_variant,consequence,function.score.mean,func.class,#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,am_pathogenicity,classification
+gene,chromosome,transcript_ID,transcript_variant,protein_variant,consequence,function.score.mean,func.class,#CHROM,POS,REF,ALT,genome,uniprot_id,transcript_id,am_pathogenicity,am_class
 BRCA1,17,NM_007294.3,c.4G>A,D2N,Missense,-0.682954463032835,FUNC,chr17,41276110,C,T,hg19,P38398,ENST00000357654.3,0.2622,benign
 BRCA1,17,NM_007294.3,c.4G>A,D2N,Missense,-0.682954463032835,FUNC,chr17,43124093,C,T,hg38,P38398,ENST00000357654.8,0.2622,likely_benign
 BRCA1,17,NM_007294.3,c.4G>C,D2H,Missense,-1.47383080582929,LOF,chr17,41276110,C,G,hg19,P38398,ENST00000357654.3,0.4824,ambiguous

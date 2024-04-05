@@ -126,9 +126,6 @@ def oddspath_strength_evidence(oddspath_val):
 
 def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
     code_dict = {'BRCA1':'P38398', 'MSH2': 'P43246', 'TP53': 'P04637'} ## get from uniprot database: https://www.uniprot.org/uniprotkb?dir=ascend&query=%28reviewed%3Atrue%29+AND+%28gene%3ATP53%29&sort=organism_name
-    print(filepath)
-    #df_new = pd.read_csv(filepath, sep = '\t', compression='gzip', skiprows=2)
-    #print(df_new.head())
     import csv
     import gzip
     with gzip.open(filepath, 'rt') as f:
@@ -148,18 +145,38 @@ def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
                 df_list.append(row)
 
         df_out = pd.DataFrame(df_list, columns=df_header[0])
-        df_out = df_out.rename(columns={'am_class':'classification'})
         df_out.to_csv(os.path.join(output_dir, gene_name, str('alphamissense_data_' + genome_coord + '.csv')), index=False)
 
         return(df_out)
 
-def popeve_data_pull(filepath, gene_name):
-    file_list = [f for f in os.listdir(filepath)if 'csv' in f][0]
-    for file in file_list:
-        fp = os.path.join(filepath, file)
-        df = pd.read_excel(fp, sheet_name=1)
-        
-        df_all.append(df)
+def popeve_data_pull(filepath):
+    df_fp = os.path.join(filepath, [f for f in os.listdir(filepath)if 'csv' in f][0])
+    df = pd.read_csv(df_fp)[['mutant', 'popEVE']]
+    #df['classification'] = ''
+   # df.loc[df['popEVE'] < 0, 'classification'] = 'Pathogenic'
+   # df.loc[df['popEVE'] > 0, 'classification'] = 'Benign'
+    df = df.rename(columns={'mutant':'protein_variant'})
+    return(df)
 
-    print(df_all)
+def plot_scatter(x, y, color, x_label, fpath, title, fname):
+    import matplotlib.patches
+    import matplotlib.pyplot as plt
 
+    levels, categories = pd.factorize(color)
+    colors = [plt.cm.tab10(i) for i in levels] # using the "tab10" colormap
+    handles = [matplotlib.patches.Patch(color=plt.cm.tab10(i), label=c) for i, c in enumerate(categories)]
+
+    plt.scatter(x, y, c=colors)
+    plt.legend(handles=handles)
+    plt.gca().set(title=title, xlabel = x_label, ylabel = 'functional data')
+    plt.savefig(os.path.join(fpath, str(fname)))
+    plt.clf()
+
+def plot_hist_pathogenic(score1, score2, model_name, fpath, fname):
+    import matplotlib.pyplot as plt
+    plt.hist(score1, alpha = 0.5, label='benign')
+    plt.hist(score2, alpha = 0.5, label='pathogenic')
+    plt.legend(loc='upper right')
+    plt.gca().set(title='Pathogenecity Histogram of '+model_name)
+    plt.savefig(os.path.join(fpath, str(fname)))
+    plt.clf()
