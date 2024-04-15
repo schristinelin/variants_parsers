@@ -100,6 +100,13 @@ def wrangle_msh2_functional(df_path):
     return df
 
 
+def wrangle_tp53_data(df_path, gene_files):
+    for f in gene_files:
+        f_path = os.path.join(df_path, f)
+        df = pd.read_excel(f_path, sheet_name=0, skiprows=1)
+        print(df)
+
+
 def map_genome_codes(str_val):
     import re
 
@@ -200,6 +207,13 @@ def oddspath_strength_evidence(oddspath_val):
 
 
 def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
+    ## Create output directory if not exist
+    if not os.path.exists(output_dir):
+        # create if not exist
+        os.makedirs(output_dir)
+    else:
+        pass
+
     code_dict = {
         "BRCA1": "P38398",
         "MSH2": "P43246",
@@ -249,6 +263,15 @@ def eve_data_pull(filepath):
     df = pd.read_csv(df_fp)[["wt_aa", "position", "mt_aa", "EVE_scores_ASM"]]
     df["protein_variant"] = df["wt_aa"] + df["position"].astype(str) + df["mt_aa"]
     df = df[["protein_variant", "EVE_scores_ASM"]]
+
+    return df
+
+
+def varity_data_pull(filepath):
+    df_fp = os.path.join(filepath, [f for f in os.listdir(filepath) if "csv" in f][0])
+    df = pd.read_csv(df_fp)[["aa_pos", "aa_ref", "aa_alt", "VARITY_ER"]]
+    df["protein_variant"] = df["aa_ref"] + df["aa_pos"].astype(str) + df["aa_alt"]
+    df = df[["protein_variant", "VARITY_ER"]]
 
     return df
 

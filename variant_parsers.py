@@ -10,9 +10,11 @@ from util import (
     plot_hist_pathogenic,
     plot_scatter,
     popeve_data_pull,
+    varity_data_pull,
     wrangle_brca1_functional,
     wrangle_clinvar_txt,
     wrangle_msh2_functional,
+    wrangle_tp53_data,
 )
 
 
@@ -42,6 +44,7 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
     am_data_dir = os.path.join(wd, "input_data", "alphamissence_inputs")
     eve_data_dir = os.path.join(wd, "input_data", "eve_inputs", gene_name)
     popeve_data_dir = os.path.join(wd, "input_data", "popeve_inputs", gene_name)
+    varity_data_dir = os.path.join(wd, "input_data", "varity_inputs", gene_name)
 
     # output directory
     output_data_dir = os.path.join(wd, "output_data")
@@ -85,11 +88,7 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         functional_df_files = [
             f for f in os.listdir(functional_data_dir) if not f.startswith(".")
         ]
-        for f in functional_df_files:
-            os.path.join(
-                functional_data_dir,
-                [f for f in f if not f.startswith(".")],
-            )
+        wrangle_tp53_data(functional_data_dir, functional_df_files)
 
     clinvar_df = wrangle_clinvar_txt(clinvar_df)
 
@@ -383,7 +382,81 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         "popeve_plot.png",
     )
 
+    ## pull varity data
+    varity_df = varity_data_pull(varity_data_dir)
+
+    # do calculations for popeve data
+    if gene_name == "BRCA1":
+        functional_df_pe = functional_df.copy()
+        functional_df_pe["protein_variant"] = functional_df_pe[
+            "protein_variant"
+        ].str.replace("p.", "")
+        varity_calc = functional_df_pe.merge(varity_df, on=["protein_variant"])
+        y_val = "function.score.mean"
+    elif gene_name == "MSH2":
+        varity_calc = functional_df.merge(varity_df, on=["protein_variant"])
+        y_val = "lof_score"
+
+    varity_output_dir = os.path.join(
+        output_gene_data_dir, "functional_varity_merged_data.csv"
+    )
+    if not os.path.exists(varity_output_dir) or regen_output_files:
+        varity_calc.to_csv(varity_output_dir, index=False)
+
+    ## merge with clinvar to get threshold for pathogenecity
+    varity_clinvar_all = varity_df.merge(clinvar_df_calc, on=["protein_variant"])
+
+    plot_hist_pathogenic(
+        varity_clinvar_all[
+            varity_clinvar_all["classification"].str.lower().str.contains("benign")
+        ]["VARITY_ER"],
+        varity_clinvar_all[
+            varity_clinvar_all["classification"].str.lower().str.contains("pathogenic")
+        ]["VARITY_ER"],
+        "Varity",
+        output_gene_data_dir,
+        "varity_histograms_pathogenecity.png",
+    )
+    print("Histogram for Varity pathogenecity saved to " + output_gene_data_dir)
+
+    # calculate oddspath for popeve
+    ## prompt user for input
+    pathogenic_threshold = input(
+        "Please review the histogram for Varity and enter the threshold for pathogenic:"
+    )
+    benign_threshold = input(
+        "Please review the histogram for Varity and enter the threshold for benign:"
+    )
+    ## set category based on threshold
+    varity_calc["classification"] = ""
+    varity_calc.loc[
+        varity_calc["VARITY_ER"] >= float(benign_threshold), "classification"
+    ] = "benign"
+    varity_calc.loc[
+        varity_calc["VARITY_ER"] <= float(pathogenic_threshold), "classification"
+    ] = "pathogenic"
+    varity_calc["classification"] = varity_calc["classification"].replace(
+        r"^\s*$", "ambiguous", regex=True
+    )
+    # calculate
+    df_calc_results.loc[len(df_calc_results)] = sum(
+        [[gene_name], calc_odds_path(varity_calc), ["Varity"]], []
+    )
+
+    # generate scatter plot
+    print("generating scatter plot")
+    plot_scatter(
+        varity_calc["VARITY_ER"],
+        varity_calc[y_val],
+        varity_calc["classification"],
+        "varity_score",
+        output_gene_data_dir,
+        "Varity vs. functional data",
+        "varity_plot.png",
+    )
+
     print(df_calc_results)
+    df_calc_results.to_csv("calculated_calibrations_all.csv", index=False)
 
 
 if __name__ == "__main__":
