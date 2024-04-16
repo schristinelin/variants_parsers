@@ -3,18 +3,22 @@ import os
 import click
 import pandas as pd
 
-from util import (
-    alphamissense_data_pull,
-    calc_odds_path,
-    eve_data_pull,
-    plot_hist_pathogenic,
-    plot_scatter,
-    popeve_data_pull,
-    varity_data_pull,
+from src.functional_data_curation import (
     wrangle_brca1_functional,
-    wrangle_clinvar_txt,
     wrangle_msh2_functional,
     wrangle_tp53_data,
+)
+from src.model_predictors_curation import (
+    alphamissense_data_pull,
+    eve_data_pull,
+    popeve_data_pull,
+    varity_data_pull,
+)
+from src.util import (
+    calc_odds_path,
+    plot_hist_pathogenic,
+    plot_scatter,
+    wrangle_clinvar_txt,
 )
 
 
