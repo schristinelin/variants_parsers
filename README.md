@@ -10,7 +10,7 @@ Options:
 ```
 
 Example:
-``` python3 variant_parsers.py BRCA1 test_merged_output.csv ``` 
+``` python3 variant_parsers.py BRCA1 ``` 
 
 
 ### References:
