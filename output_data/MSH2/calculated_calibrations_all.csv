@@ -1,0 +1,6 @@
+gene_name,func_oddspath,func_evidence,lof_oddspath,lof_evidence,predictor
+MSH2,0.17841463414634146,BS3_moderate,42.90447154471548,PS3,clinvar
+MSH2,0.7523131858107228,Indetermine,22.839339339339325,PS3,AlphaMissense
+MSH2,1.2967522439248151,Indetermine,0.23206637417760734,BS3_supporting,Regular EVE
+MSH2,0.5224762065333448,Indetermine,7.472708513887168,PS3_moderate,popEVE
+MSH2,1.1600353661161256,Indetermine,0.08514236369306051,BS3_moderate,Varity

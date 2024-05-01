@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 
+
 def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
     ## Create output directory if not exist
     if not os.path.exists(output_dir):
@@ -14,6 +15,7 @@ def alphamissense_data_pull(filepath, output_dir, genome_coord, gene_name):
         "BRCA1": "P38398",
         "MSH2": "P43246",
         "TP53": "P04637",
+        "PTEN": "P60484",
     }  ## get from uniprot database: https://www.uniprot.org/uniprotkb?dir=ascend&query=%28reviewed%3Atrue%29+AND+%28gene%3ATP53%29&sort=organism_name
     import csv
     import gzip

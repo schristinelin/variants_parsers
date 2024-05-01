@@ -6,6 +6,7 @@ import pandas as pd
 from src.functional_data_curation import (
     wrangle_brca1_functional,
     wrangle_msh2_functional,
+    wrangle_pten_data,
     wrangle_tp53_data,
 )
 from src.model_predictors_curation import (
@@ -16,8 +17,11 @@ from src.model_predictors_curation import (
 )
 from src.util import (
     calc_odds_path,
+    gaussian_mixture_model,
     plot_hist_pathogenic,
     plot_scatter,
+    train_kmeans_model,
+    train_naive_bayes_model,
     wrangle_clinvar_txt,
 )
 
@@ -89,12 +93,25 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         )
         functional_df = wrangle_msh2_functional(functional_df_path)
     elif gene_name == "TP53":
-        functional_df_files = [
-            f for f in os.listdir(functional_data_dir) if not f.startswith(".")
-        ]
-        wrangle_tp53_data(functional_data_dir, functional_df_files)
+        functional_df = wrangle_tp53_data(functional_data_dir)
+    elif gene_name == "PTEN":
+        functional_df = wrangle_pten_data(functional_data_dir)
 
     clinvar_df = wrangle_clinvar_txt(clinvar_df)
+
+    ## train the data for PTEN and TP53
+    if gene_name in ["TP53", "PTEN"]:
+        train_naive_bayes_model(
+            functional_df, clinvar_df, output_gene_data_dir, "gaussian_nb_plot.png"
+        )
+        train_kmeans_model(
+            functional_df, output_gene_data_dir, "kmeans_clustering_plot.png"
+        )
+        functional_df = gaussian_mixture_model(
+            functional_df, output_gene_data_dir, "gaussian_mixture_plot.png"
+        )
+    else:
+        pass
 
     # pull alphamissense data if it doesn't exist
     if (
@@ -135,7 +152,7 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         classified_df = functional_df.merge(
             clinvar_df, on=["transcript_variant", "protein_variant"]
         ).drop_duplicates()
-    elif gene_name == "MSH2":
+    elif gene_name in ["MSH2", "PTEN", "TP53"]:
         clinvar_df.loc[clinvar_df["protein_variant"] != "NA", "protein_variant"] = (
             clinvar_df["protein_variant"].str.replace("p.", "")
         )
@@ -178,6 +195,8 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
     elif gene_name == "MSH2":
         am_calc = functional_df.merge(am_df, on=["protein_variant"]).drop_duplicates()
         y_val = "lof_score"
+    elif gene_name == "PTEN":
+        am_calc = functional_df.merge(am_df, on=["protein_variant"]).drop_duplicates()
 
     am_output_dir = os.path.join(
         output_gene_data_dir, "functional_alphamissense_merged_data.csv"
@@ -229,18 +248,44 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
     df_calc_results.loc[len(df_calc_results)] = sum(
         [[gene_name], calc_odds_path(am_calc), ["AlphaMissense"]], []
     )
+    # print(df_calc_results)
 
-    # generate scatter plot
-    print("generating scatter plot")
-    plot_scatter(
-        am_calc["am_pathogenicity"],
-        am_calc[y_val],
-        am_calc["classification"],
-        "alphamissense_pathogenicity_score",
-        output_gene_data_dir,
-        "Alphamissense vs. functional data",
-        "alphamissense_plot.png",
-    )
+    if gene_name == "PTEN":
+        print("generating scatter plot for Mighell data")
+        plot_scatter(
+            am_calc["am_pathogenicity"],
+            am_calc["mighell_score"],
+            am_calc["classification"],
+            "alphamissense_pathogenicity_score",
+            "functional data",
+            output_gene_data_dir,
+            "Alphamissense vs. functional data",
+            "alphamissense_plot_mighell.png",
+        )
+        print("generating scatter plot for Metreyek data")
+        plot_scatter(
+            am_calc["am_pathogenicity"],
+            am_calc["matreyek_score"],
+            am_calc["classification"],
+            "alphamissense_pathogenicity_score",
+            "functional data",
+            output_gene_data_dir,
+            "Alphamissense vs. functional data",
+            "alphamissense_plot_matreyek.png",
+        )
+    else:
+        # generate scatter plot
+        print("generating scatter plot")
+        plot_scatter(
+            am_calc["am_pathogenicity"],
+            am_calc[y_val],
+            am_calc["classification"],
+            "alphamissense_pathogenicity_score",
+            "functional data",
+            output_gene_data_dir,
+            "Alphamissense vs. functional data",
+            "alphamissense_plot.png",
+        )
 
     ## pull regular eve data
     eve_df = eve_data_pull(eve_data_dir)
@@ -255,6 +300,8 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
     elif gene_name == "MSH2":
         eve_calc = functional_df.merge(eve_df, on=["protein_variant"])
         y_val = "lof_score"
+    elif gene_name == "PTEN":
+        eve_calc = functional_df.merge(eve_df, on=["protein_variant"])
 
     eve_output_dir = os.path.join(
         output_gene_data_dir, "functional_eve_merged_data.csv"
@@ -302,89 +349,120 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         [[gene_name], calc_odds_path(eve_calc), ["Regular EVE"]], []
     )
 
-    # generate scatter plot
-    print("generating scatter plot")
-    plot_scatter(
-        eve_calc["EVE_scores_ASM"],
-        eve_calc[y_val],
-        eve_calc["classification"],
-        "eve_score",
-        output_gene_data_dir,
-        "Regular EVE vs. functional data",
-        "reg_eve_plot.png",
-    )
+    if gene_name == "PTEN":
+        print("generating scatter plot for Mighell data")
+        plot_scatter(
+            eve_calc["EVE_scores_ASM"],
+            eve_calc["mighell_score"],
+            eve_calc["classification"],
+            "eve_score",
+            "functional data",
+            output_gene_data_dir,
+            "Regular EVE vs. functional data",
+            "reg_eve_plot_mighell.png",
+        )
+        print("generating scatter plot for Metreyek data")
+        plot_scatter(
+            eve_calc["EVE_scores_ASM"],
+            eve_calc["matreyek_score"],
+            eve_calc["classification"],
+            "eve_score",
+            "functional data",
+            output_gene_data_dir,
+            "Regular EVE vs. functional data",
+            "reg_eve_plot_matreyek.png",
+        )
+    else:
+        # generate scatter plot
+        print("generating scatter plot")
+        plot_scatter(
+            eve_calc["EVE_scores_ASM"],
+            eve_calc[y_val],
+            eve_calc["classification"],
+            "eve_score",
+            "functional data",
+            output_gene_data_dir,
+            "Regular EVE vs. functional data",
+            "reg_eve_plot.png",
+        )
 
     ## pull popeve data
-    popeve_df = popeve_data_pull(popeve_data_dir)
-    # do calculations for popeve data
-    if gene_name == "BRCA1":
-        functional_df_pe = functional_df.copy()
-        functional_df_pe["protein_variant"] = functional_df_pe[
-            "protein_variant"
-        ].str.replace("p.", "")
-        popeve_calc = functional_df_pe.merge(popeve_df, on=["protein_variant"])
-        y_val = "function.score.mean"
-    elif gene_name == "MSH2":
-        popeve_calc = functional_df.merge(popeve_df, on=["protein_variant"])
-        y_val = "lof_score"
+    if gene_name == "PTEN":
+        print("popEVE does not have PTEN data.")
+    else:
+        popeve_df = popeve_data_pull(popeve_data_dir)
+        # do calculations for popeve data
+        if gene_name == "BRCA1":
+            functional_df_pe = functional_df.copy()
+            functional_df_pe["protein_variant"] = functional_df_pe[
+                "protein_variant"
+            ].str.replace("p.", "")
+            popeve_calc = functional_df_pe.merge(popeve_df, on=["protein_variant"])
+            y_val = "function.score.mean"
+        elif gene_name == "MSH2":
+            popeve_calc = functional_df.merge(popeve_df, on=["protein_variant"])
+            y_val = "lof_score"
 
-    popeve_output_dir = os.path.join(
-        output_gene_data_dir, "functional_popeve_merged_data.csv"
-    )
-    if not os.path.exists(popeve_output_dir) or regen_output_files:
-        popeve_calc.to_csv(popeve_output_dir, index=False)
+        popeve_output_dir = os.path.join(
+            output_gene_data_dir, "functional_popeve_merged_data.csv"
+        )
+        if not os.path.exists(popeve_output_dir) or regen_output_files:
+            popeve_calc.to_csv(popeve_output_dir, index=False)
 
-    ## merge with clinvar to get threshold for pathogenecity
-    popeve_clinvar_all = popeve_df.merge(clinvar_df_calc, on=["protein_variant"])
+        ## merge with clinvar to get threshold for pathogenecity
+        popeve_clinvar_all = popeve_df.merge(clinvar_df_calc, on=["protein_variant"])
 
-    plot_hist_pathogenic(
-        popeve_clinvar_all[
-            popeve_clinvar_all["classification"].str.lower().str.contains("benign")
-        ]["popEVE"],
-        popeve_clinvar_all[
-            popeve_clinvar_all["classification"].str.lower().str.contains("pathogenic")
-        ]["popEVE"],
-        "popEVE",
-        output_gene_data_dir,
-        "popeve_histograms_pathogenecity.png",
-    )
-    print("Histogram for popEVE pathogenecity saved to " + output_gene_data_dir)
+        plot_hist_pathogenic(
+            popeve_clinvar_all[
+                popeve_clinvar_all["classification"].str.lower().str.contains("benign")
+            ]["popEVE"],
+            popeve_clinvar_all[
+                popeve_clinvar_all["classification"]
+                .str.lower()
+                .str.contains("pathogenic")
+            ]["popEVE"],
+            "popEVE",
+            output_gene_data_dir,
+            "popeve_histograms_pathogenecity.png",
+        )
+        print("Histogram for popEVE pathogenecity saved to " + output_gene_data_dir)
 
-    # calculate oddspath for popeve
-    ## prompt user for input
-    pathogenic_threshold = input(
-        "Please review the histogram for popEVE and enter the threshold for pathogenic:"
-    )
-    benign_threshold = input(
-        "Please review the histogram for popEVE and enter the threshold for benign:"
-    )
-    ## set category based on threshold
-    popeve_calc["classification"] = ""
-    popeve_calc.loc[
-        popeve_calc["popEVE"] >= float(benign_threshold), "classification"
-    ] = "benign"
-    popeve_calc.loc[
-        popeve_calc["popEVE"] <= float(pathogenic_threshold), "classification"
-    ] = "pathogenic"
-    popeve_calc["classification"] = popeve_calc["classification"].replace(
-        r"^\s*$", "ambiguous", regex=True
-    )
-    # calculate
-    df_calc_results.loc[len(df_calc_results)] = sum(
-        [[gene_name], calc_odds_path(popeve_calc), ["popEVE"]], []
-    )
+        # calculate oddspath for popeve
+        ## prompt user for input
+        pathogenic_threshold = input(
+            "Please review the histogram for popEVE and enter the threshold for pathogenic:"
+        )
+        benign_threshold = input(
+            "Please review the histogram for popEVE and enter the threshold for benign:"
+        )
+        ## set category based on threshold
+        popeve_calc["classification"] = ""
+        popeve_calc.loc[
+            popeve_calc["popEVE"] >= float(benign_threshold), "classification"
+        ] = "benign"
+        popeve_calc.loc[
+            popeve_calc["popEVE"] <= float(pathogenic_threshold), "classification"
+        ] = "pathogenic"
+        popeve_calc["classification"] = popeve_calc["classification"].replace(
+            r"^\s*$", "ambiguous", regex=True
+        )
+        # calculate
+        df_calc_results.loc[len(df_calc_results)] = sum(
+            [[gene_name], calc_odds_path(popeve_calc), ["popEVE"]], []
+        )
 
-    # generate scatter plot
-    print("generating scatter plot")
-    plot_scatter(
-        popeve_calc["popEVE"],
-        popeve_calc[y_val],
-        popeve_calc["classification"],
-        "popeve_score",
-        output_gene_data_dir,
-        "popEVE vs. functional data",
-        "popeve_plot.png",
-    )
+        # generate scatter plot
+        print("generating scatter plot")
+        plot_scatter(
+            popeve_calc["popEVE"],
+            popeve_calc[y_val],
+            popeve_calc["classification"],
+            "popeve_score",
+            "functional data",
+            output_gene_data_dir,
+            "popEVE vs. functional data",
+            "popeve_plot.png",
+        )
 
     ## pull varity data
     varity_df = varity_data_pull(varity_data_dir)
@@ -454,13 +532,17 @@ def variant_parser(gene_name, regen_output_files, regen_alphamissense_data):
         varity_calc[y_val],
         varity_calc["classification"],
         "varity_score",
+        "functional data",
         output_gene_data_dir,
         "Varity vs. functional data",
         "varity_plot.png",
     )
 
     print(df_calc_results)
-    df_calc_results.to_csv("calculated_calibrations_all.csv", index=False)
+    df_calc_results.to_csv(
+        os.path.join(output_gene_data_dir, "calculated_calibrations_all.csv"),
+        index=False,
+    )
 
 
 if __name__ == "__main__":

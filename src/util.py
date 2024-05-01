@@ -1,3 +1,4 @@
+import itertools
 import os
 
 import pandas as pd
@@ -63,8 +64,6 @@ def wrangle_clinvar_txt(df):
     return df_new
 
 
-
-
 def map_genome_codes(str_val):
     import re
 
@@ -89,37 +88,40 @@ def calc_odds_path(df):
     num_pathogenic = len(
         df[df["classification"].str.lower().str.contains("pathogenic")]
     )
-    num_benign = len(df[df["classification"].str.lower().str.contains("benign")])
-
+    # num_benign = len(df[df["classification"].str.lower().str.contains("benign")])
+    print(num_pathogenic)
     pathogenic_prop_p1 = num_pathogenic / sample_size
-    benign_prop_p1 = num_benign / sample_size
+    # benign_prop_p1 = num_benign / sample_size
 
     ## p2
     ## FUNC
     func_df = df[df["func.class"] == "FUNC"]
+    print(df)
+    print(func_df)
     sample_size_1 = len(func_df)
     num_pathogenic_func = len(
         func_df[func_df["classification"].str.lower().str.contains("pathogenic")]
     )
-    num_benign_func = len(
-        func_df[func_df["classification"].str.lower().str.contains("benign")]
-    )
+    # num_benign_func = len(
+    #    func_df[func_df["classification"].str.lower().str.contains("benign")]
+    # )
 
     pathogenic_prop_func_p2 = num_pathogenic_func / sample_size_1
-    benign_prop_func_p2 = num_benign_func / sample_size_1
-
+    # benign_prop_func_p2 = num_benign_func / sample_size_1
+    print(pathogenic_prop_func_p2)
     ## LOF
     lof_df = df[df["func.class"] == "LOF"]
+    print(lof_df)
     sample_size_2 = len(lof_df)
     num_pathogenic_lof = len(
         lof_df[lof_df["classification"].str.lower().str.contains("pathogenic")]
     )
-    num_benign_lof = len(
-        lof_df[lof_df["classification"].str.lower().str.contains("benign")]
-    )
+    # num_benign_lof = len(
+    #    lof_df[lof_df["classification"].str.lower().str.contains("benign")]
+    # )
 
     pathogenic_prop_lof_p2 = num_pathogenic_lof / sample_size_2
-    benign_prop_lof_p2 = num_pathogenic_lof / sample_size_2
+    # benign_prop_lof_p2 = num_pathogenic_lof / sample_size_2
 
     ## func oddspath
     func_oddspath = (pathogenic_prop_func_p2 * (1 - pathogenic_prop_p1)) / (
@@ -164,8 +166,7 @@ def oddspath_strength_evidence(oddspath_val):
     return evidence_strength
 
 
-
-def plot_scatter(x, y, color, x_label, fpath, title, fname):
+def plot_scatter(x, y, color, x_label, ylabel, fpath, title, fname):
     import matplotlib.patches
     import matplotlib.pyplot as plt
 
@@ -176,9 +177,9 @@ def plot_scatter(x, y, color, x_label, fpath, title, fname):
         for i, c in enumerate(categories)
     ]
 
-    plt.scatter(x, y, c=colors)
+    plt.scatter(x, y, c=colors, s=5)
     plt.legend(handles=handles)
-    plt.gca().set(title=title, xlabel=x_label, ylabel="functional data")
+    plt.gca().set(title=title, xlabel=x_label, ylabel=ylabel)
     plt.savefig(os.path.join(fpath, str(fname)))
     plt.clf()
 
@@ -192,3 +193,153 @@ def plot_hist_pathogenic(score1, score2, model_name, fpath, fname):
     plt.gca().set(title="Pathogenecity Histogram of " + model_name)
     plt.savefig(os.path.join(fpath, str(fname)))
     plt.clf()
+
+
+def train_naive_bayes_model(functional_df, clinvar_df, save_plot_path, save_plot_name):
+    from sklearn.metrics import accuracy_score
+    from sklearn.model_selection import train_test_split
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.preprocessing import OneHotEncoder
+
+    clinvar_df = clinvar_df.drop("transcript_variant", axis=1)
+    clinvar_df["protein_variant"] = clinvar_df["protein_variant"].str.replace("p.", "")
+    df = functional_df.merge(clinvar_df, on="protein_variant")
+    df["classification"] = df["classification"].map({"Benign": 0, "Pathogenic": 1})
+    X = df.iloc[:, 1:-1].fillna(0).values  # debatable way of filling NAs
+    y = df.iloc[:, -1:].values.ravel()
+
+    print(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=1
+    )
+    x_label, y_label = df.iloc[:, 1:-1].columns[0], df.iloc[:, 1:-1].columns[1]
+    ## fit NB model on X and y
+    classifier = GaussianNB(priors=[0.5, 0.5])
+    classifier.fit(X_train, y_train)
+    y_pred = classifier.predict(X_test)
+    # accuracy score
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy:", accuracy)
+
+    all_predictions = classifier.predict(X)
+
+    df_predict = pd.DataFrame(
+        {
+            "protein_variant": df.iloc[:, 0].values,
+            x_label: df[x_label],
+            y_label: df[y_label],
+            "predicted_class": all_predictions,
+        }
+    )
+    df_predict["func.class"] = df_predict["predicted_class"].map({0: "FUNC", 1: "LOF"})
+
+    plot_scatter(
+        df_predict[x_label],
+        df_predict[y_label],
+        df_predict["predicted_class"],
+        x_label,
+        y_label,
+        save_plot_path,
+        "Gaussian NB Clustering Results",
+        save_plot_name,
+    )
+
+    return df_predict
+
+
+def train_kmeans_model(functional_df, save_plot_path, save_plot_name):
+    import matplotlib.pyplot as plt
+    from sklearn.cluster import KMeans
+    from sklearn.preprocessing import StandardScaler
+
+    functional_df = functional_df.drop("protein_variant", axis=1)
+    x_label, y_label = functional_df.columns[0], functional_df.columns[1]
+    X = functional_df.fillna(0).values
+    # again, debatable way of filling NAs
+    print(X)
+
+    # normalize data
+    standard_scaler = StandardScaler()
+    X_standard = standard_scaler.fit_transform(X)
+
+    ## elbow method
+    inertias = []
+    K = range(1, 10)
+    for k in K:
+        kmeanModel = KMeans(n_clusters=k).fit(X_standard)
+        kmeanModel.fit(X_standard)
+        inertias.append(kmeanModel.inertia_)
+
+    print("Elbow Method plot saved to ", save_plot_path)
+    plt.plot(K, inertias, "bx-")
+    plt.xlabel("Values of K")
+    plt.ylabel("Inertia")
+    plt.title("The Elbow Method using Inertia")
+    plt.savefig(os.path.join(save_plot_path, "KMeans_elbow_plot.png"))
+    plt.clf()
+    k_val = input("Please review the elbow method plot and enter an optimal k-value:")
+
+    # initialize k means model
+    model = KMeans(n_clusters=int(k_val), random_state=42)
+    kmeans = model.fit(X_standard)
+
+    plot_scatter(
+        X[:, 0],
+        X[:, 1],
+        kmeans.labels_,
+        x_label,
+        y_label,
+        save_plot_path,
+        "K-Means Clustering Results",
+        save_plot_name,
+    )
+
+    df_predict = pd.DataFrame(
+        {
+            "protein_variant": functional_df.iloc[:, 0].values,
+            x_label: functional_df[x_label],
+            y_label: functional_df[y_label],
+            "predicted_class": kmeans.labels_,
+        }
+    )
+
+
+def gaussian_mixture_model(functional_df, save_plot_path, save_plot_name):
+    import matplotlib.pyplot as plt
+    from sklearn.mixture import GaussianMixture
+    from sklearn.preprocessing import StandardScaler
+
+    # Create a Gaussian Mixture model
+    gmm = GaussianMixture(n_components=4, random_state=1)
+    X = functional_df.drop("protein_variant", axis=1)
+    x_label, y_label = functional_df.columns[0], functional_df.columns[1]
+    X = X.fillna(0).values
+
+    # normalize data
+    standard_scaler = StandardScaler()
+    X_standard = standard_scaler.fit_transform(X)
+
+    gmm.fit(X_standard)
+    labels = gmm.predict(X_standard)
+
+    plot_scatter(
+        X[:, 0],
+        X[:, 1],
+        labels,
+        x_label,
+        y_label,
+        save_plot_path,
+        "Gaussian Mixture Results",
+        save_plot_name,
+    )
+
+    functional_df["func.class"] = labels
+    functional_df["func.class"] = functional_df["func.class"].map(
+        {0: "LOF", 1: "FUNC", 2: "LOF", 3: "LOF"}
+    )
+
+    return functional_df
+
+
+# print(df)
